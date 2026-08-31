@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>作業タイムトラッカー</title>
+  <style>
+    :root {
+      --bg: #f1f5f9;
+      --card-bg: #ffffff;
+      --text: #0f172a;
+      --text-sub: #64748b;
+      --border: #cbd5e1;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --success: #16a34a;
+      --success-bg: #f0fdf4;
+      --warning: #ea580c;
+      --danger: #ef4444;
+      --btn-secondary: #e2e8f0;
+      --btn-secondary-text: #334155;
+      --shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    [data-theme="dark"] {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --text: #f8fafc;
+      --text-sub: #94a3b8;
+      --border: #334155;
+      --primary: #3b82f6;
+      --primary-hover: #60a5fa;
+      --success: #22c55e;
+      --success-bg: #064e3b33;
+      --warning: #f97316;
+      --danger: #f87171;
+      --btn-secondary: #334155;
+      --btn-secondary-text: #e2e8f0;
+      --shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      transition: background-color 0.15s, border-color 0.15s;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      padding: 12px;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 680px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* ヘッダー */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 2px;
+    }
+
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .theme-toggle-btn {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    /* 合計サマリー */
+    .summary-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: var(--shadow);
+    }
+
+    .summary-title {
+      font-size: 0.85rem;
+      color: var(--text-sub);
+      font-weight: 600;
+    }
+
+    .total-time-display {
+      font-size: 1.8rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: var(--primary);
+    }
+
+    /* 操作バー・オプション */
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    button {
+      border: none;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    button:active {
+      transform: scale(0.97);
+    }
+
+    .btn-add {
+      background-color: var(--primary);
+      color: #fff;
+    }
+
+    .btn-copy {
+      background-color: #0f172a;
+      color: #fff;
+    }
+
+    [data-theme="dark"] .btn-copy {
+      background-color: #334155;
+    }
+
+    .option-toggle {
+      font-size: 0.8rem;
+      color: var(--text-sub);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .option-toggle input {
+      cursor: pointer;
+    }
+
+    /* タスクリスト（1行レイアウト） */
+    .task-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .task-row {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .task-row.running {
+      border-color: var(--success);
+      background-color: var(--success-bg);
+      box-shadow: 0 0 0 1px var(--success);
+    }
+
+    .task-main-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: nowrap;
+    }
+
+    .task-name-input {
+      flex: 1;
+      min-width: 100px;
+      font-size: 1rem;
+      font-weight: 600;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      padding: 6px 8px;
+      background: transparent;
+      color: var(--text);
+    }
+
+    .task-name-input:focus {
+      outline: none;
+      background: var(--card-bg);
+      border-color: var(--primary);
+    }
+
+    .task-right-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .timer-display {
+      font-size: 1.25rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      padding: 0 4px;
+      min-width: 78px;
+      text-align: right;
+    }
+
+    .task-row.running .timer-display {
+      color: var(--success);
+    }
+
+    /* 開始・停止ボタン */
+    .btn-start {
+      background-color: #22c55e;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 6px;
+    }
+
+    .btn-stop {
+      background-color: #ea580c;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 6px;
+    }
+
+    .btn-start:disabled, .btn-stop:disabled {
+      background-color: var(--btn-secondary);
+      color: var(--text-sub);
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
+    /* サブ情報行（作業メモ・テキスト入力） */
+    .task-details-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      border-top: 1px dashed var(--border);
+      padding-top: 6px;
+    }
+
+    .task-note-input {
+      flex: 1;
+      font-size: 0.85rem;
+      color: var(--text);
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      padding: 4px 6px;
+      resize: vertical;
+      min-height: 24px;
+    }
+
+    .task-note-input:focus {
+      outline: none;
+      background: var(--card-bg);
+      border-color: var(--border);
+    }
+
+    .task-minor-buttons {
+      display: flex;
+      gap: 4px;
+    }
+
+    .btn-icon-sm {
+      background: transparent;
+      color: var(--text-sub);
+      padding: 4px 6px;
+      font-size: 0.8rem;
+      border-radius: 4px;
+    }
+
+    .btn-icon-sm:hover {
+      background: var(--btn-secondary);
+    }
+
+    /* モーダル */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      z-index: 200;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 18px;
+      width: 100%;
+      max-width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .time-inputs {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .time-inputs input {
+      width: 60px;
+      text-align: center;
+      font-size: 1.2rem;
+      font-weight: 700;
+      padding: 6px 0;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .modal-actions button {
+      flex: 1;
+    }
+
+    /* トースト */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #0f172a;
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      opacity: 0;
+      transition: transform 0.25s, opacity 0.25s;
+      pointer-events: none;
+      z-index: 300;
+    }
+
+    [data-theme="dark"] .toast {
+      background: #f8fafc;
+      color: #0f172a;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>作業タイムトラッカー</h1>
+    <div class="header-controls">
+      <button class="theme-toggle-btn" id="themeToggleBtn" title="ダークモード切替">🌙</button>
+    </div>
+  </header>
+
+  <div class="summary-card">
+    <div class="summary-title">合計作業時間</div>
+    <div class="total-time-display" id="totalTime">00:00:00</div>
+  </div>
+
+  <div class="toolbar">
+    <div class="action-buttons">
+      <button class="btn-add" id="addTaskBtn">＋ 作業を追加</button>
+      <button class="btn-copy" id="copyResultBtn">📋 結果をコピー</button>
+    </div>
+    <label class="option-toggle" title="新しい作業を開始した際、実行中の他の作業を自動で停止します">
+      <input type="checkbox" id="autoPauseOther" checked>
+      <span>開始時に他の作業を自動停止</span>
+    </label>
+  </div>
+
+  <div class="task-list" id="taskList"></div>
+</div>
+
+<div class="modal-overlay" id="timeEditModal">
+  <div class="modal-card">
+    <div style="font-weight: 700;">時間の編集</div>
+    <div class="time-inputs">
+      <input type="number" id="editHours" min="0" max="99" placeholder="時">
+      <span>:</span>
+      <input type="number" id="editMinutes" min="0" max="59" placeholder="分">
+      <span>:</span>
+      <input type="number" id="editSeconds" min="0" max="59" placeholder="秒">
+    </div>
+    <div class="modal-actions">
+      <button style="background: var(--btn-secondary); color: var(--btn-secondary-text);" id="cancelEditBtn">キャンセル</button>
+      <button class="btn-add" id="saveEditBtn">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">コピーしました！</div>
+
+<script>
+  // 初期データ構造（テキスト内容 note を追加）
+  let tasks = JSON.parse(localStorage.getItem('timeTrackerTasks_v3')) || [
+    { id: 1, name: '作業1', note: '', elapsed: 0, isRunning: false, lastStart: null },
+    { id: 2, name: '作業2', note: '', elapsed: 0, isRunning: false, lastStart: null },
+    { id: 3, name: '作業3', note: '', elapsed: 0, isRunning: false, lastStart: null }
+  ];
+
+  let currentTheme = localStorage.getItem('timeTrackerTheme') || 'light';
+  document.documentElement.setAttribute('data-theme', currentTheme);
+  updateThemeIcon();
+
+  let autoPause = localStorage.getItem('timeTrackerAutoPause') !== 'false';
+  document.getElementById('autoPauseOther').checked = autoPause;
+
+  let editingTaskId = null;
+
+  function saveTasks() {
+    localStorage.setItem('timeTrackerTasks_v3', JSON.stringify(tasks));
+  }
+
+  // テーマ切替
+  const themeToggleBtn = document.getElementById('themeToggleBtn');
+  themeToggleBtn.addEventListener('click', () => {
+    currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    localStorage.setItem('timeTrackerTheme', currentTheme);
+    updateThemeIcon();
+  });
+
+  function updateThemeIcon() {
+    themeToggleBtn.innerText = currentTheme === 'light' ? '🌙' : '☀️';
+  }
+
+  // 自動停止オプション
+  document.getElementById('autoPauseOther').addEventListener('change', (e) => {
+    autoPause = e.target.checked;
+    localStorage.setItem('timeTrackerAutoPause', autoPause);
+  });
+
+  // 時間フォーマット
+  function formatTime(ms) {
+    const totalSeconds = Math.floor(ms / 1000);
+    const h = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+    const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+    const s = String(totalSeconds % 60).padStart(2, '0');
+    return `${h}:${m}:${s}`;
+  }
+
+  function formatDurationJapanese(ms) {
+    const totalSeconds = Math.floor(ms / 1000);
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    const p = [];
+    if (h > 0) p.push(`${h}時間`);
+    if (m > 0 || h > 0) p.push(`${m}分`);
+    p.push(`${s}秒`);
+    return p.join('');
+  }
+
+  function getTaskElapsed(task) {
+    if (task.isRunning && task.lastStart) {
+      return task.elapsed + (Date.now() - task.lastStart);
+    }
+    return task.elapsed;
+  }
+
+  // 画面描画
+  function render() {
+    const listEl = document.getElementById('taskList');
+    listEl.innerHTML = '';
+
+    let totalMs = 0;
+
+    tasks.forEach(task => {
+      const currentElapsed = getTaskElapsed(task);
+      totalMs += currentElapsed;
+
+      const card = document.createElement('div');
+      card.className = `task-row ${task.isRunning ? 'running' : ''}`;
+      card.innerHTML = `
+        <div class="task-main-line">
+          <input type="text" class="task-name-input" value="${escapeHtml(task.name)}" data-id="${task.id}" placeholder="作業名">
+          <div class="task-right-controls">
+            <span class="timer-display">${formatTime(currentElapsed)}</span>
+            <button class="btn-start" data-id="${task.id}" ${task.isRunning ? 'disabled' : ''}>開始</button>
+            <button class="btn-stop" data-id="${task.id}" ${!task.isRunning ? 'disabled' : ''}>停止</button>
+          </div>
+        </div>
+        <div class="task-details-row">
+          <input type="text" class="task-note-input" value="${escapeHtml(task.note || '')}" data-id="${task.id}" placeholder="作業内容・メモを入力（自動保存）">
+          <div class="task-minor-buttons">
+            <button class="btn-icon-sm btn-edit-time" data-id="${task.id}" title="時間を編集">✏️</button>
+            <button class="btn-icon-sm btn-reset" data-id="${task.id}" title="リセット">🔄</button>
+            <button class="btn-icon-sm btn-del" data-id="${task.id}" title="削除">🗑️</button>
+          </div>
+        </div>
+      `;
+      listEl.appendChild(card);
+    });
+
+    document.getElementById('totalTime').innerText = formatTime(totalMs);
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  // 1秒ごとの更新
+  setInterval(() => {
+    if (tasks.some(t => t.isRunning)) {
+      render();
+    }
+  }, 1000);
+
+  // 入力イベント（作業名・作業内容テキストの保存）
+  document.getElementById('taskList').addEventListener('input', (e) => {
+    const id = Number(e.target.dataset.id);
+    if (!id) return;
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+
+    if (e.target.classList.contains('task-name-input')) {
+      task.name = e.target.value;
+      saveTasks();
+    } else if (e.target.classList.contains('task-note-input')) {
+      task.note = e.target.value;
+      saveTasks();
+    }
+  });
+
+  // クリック操作
+  document.getElementById('taskList').addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const id = Number(btn.dataset.id);
+    if (!id) return;
+
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+
+    // 開始
+    if (btn.classList.contains('btn-start')) {
+      if (autoPause) {
+        // 他の作業をすべて停止
+        tasks.forEach(t => {
+          if (t.id !== id && t.isRunning) {
+            t.elapsed += Date.now() - t.lastStart;
+            t.isRunning = false;
+            t.lastStart = null;
+          }
+        });
+      }
+      task.isRunning = true;
+      task.lastStart = Date.now();
+      saveTasks();
+      render();
+      return;
+    }
+
+    // 停止
+    if (btn.classList.contains('btn-stop')) {
+      if (task.isRunning) {
+        task.elapsed += Date.now() - task.lastStart;
+        task.isRunning = false;
+        task.lastStart = null;
+        saveTasks();
+        render();
+      }
+      return;
+    }
+
+    // 時間編集
+    if (btn.classList.contains('btn-edit-time')) {
+      openEditModal(task);
+      return;
+    }
+
+    // リセット
+    if (btn.classList.contains('btn-reset')) {
+      if (confirm(`「${task.name}」の時間を00:00:00にリセットしますか？`)) {
+        task.elapsed = 0;
+        if (task.isRunning) task.lastStart = Date.now();
+        saveTasks();
+        render();
+      }
+      return;
+    }
+
+    // 削除
+    if (btn.classList.contains('btn-del')) {
+      if (confirm(`「${task.name}」を削除しますか？`)) {
+        tasks = tasks.filter(t => t.id !== id);
+        saveTasks();
+        render();
+      }
+      return;
+    }
+  });
+
+  // 作業追加
+  document.getElementById('addTaskBtn').addEventListener('click', () => {
+    tasks.push({
+      id: Date.now(),
+      name: `作業${tasks.length + 1}`,
+      note: '',
+      elapsed: 0,
+      isRunning: false,
+      lastStart: null
+    });
+    saveTasks();
+    render();
+  });
+
+  // 時間編集モーダル
+  const modal = document.getElementById('timeEditModal');
+  const editHours = document.getElementById('editHours');
+  const editMinutes = document.getElementById('editMinutes');
+  const editSeconds = document.getElementById('editSeconds');
+
+  function openEditModal(task) {
+    editingTaskId = task.id;
+    const currentMs = getTaskElapsed(task);
+    const totalSeconds = Math.floor(currentMs / 1000);
+    editHours.value = Math.floor(totalSeconds / 3600);
+    editMinutes.value = Math.floor((totalSeconds % 3600) / 60);
+    editSeconds.value = totalSeconds % 60;
+    modal.classList.add('active');
+  }
+
+  document.getElementById('cancelEditBtn').addEventListener('click', () => {
+    modal.classList.remove('active');
+    editingTaskId = null;
+  });
+
+  document.getElementById('saveEditBtn').addEventListener('click', () => {
+    if (!editingTaskId) return;
+    const task = tasks.find(t => t.id === editingTaskId);
+    if (task) {
+      const h = Math.max(0, parseInt(editHours.value) || 0);
+      const m = Math.max(0, Math.min(59, parseInt(editMinutes.value) || 0));
+      const s = Math.max(0, Math.min(59, parseInt(editSeconds.value) || 0));
+      task.elapsed = (h * 3600 + m * 60 + s) * 1000;
+      if (task.isRunning) task.lastStart = Date.now();
+      saveTasks();
+      render();
+    }
+    modal.classList.remove('active');
+    editingTaskId = null;
+  });
+
+  // 結果コピー（作業内容テキストも反映）
+  document.getElementById('copyResultBtn').addEventListener('click', () => {
+    let totalMs = 0;
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
+
+    const lines = [];
+    lines.push(`📋 【作業実績】 ${dateStr}`);
+    lines.push(`----------------------------------------`);
+
+    tasks.forEach(task => {
+      const elapsed = getTaskElapsed(task);
+      totalMs += elapsed;
+      const timeStr = formatTime(elapsed);
+      const readable = formatDurationJapanese(elapsed);
+      
+      lines.push(`■ ${task.name || '名称未設定'}: ${timeStr} (${readable})`);
+      if (task.note && task.note.trim() !== '') {
+        lines.push(`   内容: ${task.note.trim()}`);
+      }
+    });
+
+    lines.push(`----------------------------------------`);
+    lines.push(`【合計時間】 ${formatTime(totalMs)} (${formatDurationJapanese(totalMs)})`);
+
+    navigator.clipboard.writeText(lines.join('\n')).then(() => {
+      showToast('作業内容を含めてコピーしました！');
+    });
+  });
+
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.innerText = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2000);
+  }
+
+  // 初期描画
+  render();
+</script>
+</body>
+</html>
