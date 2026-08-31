@@ -200,6 +200,9 @@
     .btn-primary { background-color: var(--primary); color: #fff; }
     .btn-primary:hover { background-color: var(--primary-hover); }
     
+    .btn-danger { background-color: var(--danger); color: #fff; }
+    .btn-danger:hover { background-color: var(--danger-hover); }
+
     .btn-dark { background-color: #0f172a; color: #fff; }
     [data-theme="dark"] .btn-dark { background-color: #334155; }
     .btn-dark:hover { opacity: 0.9; }
@@ -383,6 +386,20 @@
     .btn-icon.danger:hover { background: var(--danger-bg); }
 
     /* =========================================
+       下部アクションエリア
+       ========================================= */
+    .bottom-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 8px;
+    }
+    .bottom-actions button {
+      flex: 1;
+      padding: 12px;
+      font-size: 1rem;
+    }
+
+    /* =========================================
        モーダル (時間編集)
        ========================================= */
     .modal-overlay {
@@ -563,7 +580,6 @@
   <!-- ツールバー -->
   <div class="toolbar">
     <div class="btn-group">
-      <button class="btn-primary" id="btnAddTask">＋ 作業を追加</button>
       <button class="btn-dark" id="btnCopyResult">📋 結果をコピー</button>
     </div>
     <label class="toggle-option" title="開始ボタンを押した時、他の動いているタイマーを自動で停止します">
@@ -575,6 +591,12 @@
   <!-- タスクリスト -->
   <div class="task-list" id="taskListContainer">
     <!-- 動的生成 -->
+  </div>
+
+  <!-- 下部アクションエリア -->
+  <div class="bottom-actions">
+    <button class="btn-primary" id="btnAddTask">＋ 作業を追加</button>
+    <button class="btn-danger" id="btnResetAll">🔄 すべてリセット</button>
   </div>
 </div>
 
@@ -618,7 +640,7 @@
    * =========================================
    */
 
-  // バグ修正のために保存キーを更新 (v8)
+  // 保存キー
   const STORAGE_KEY = 'v8_timeTrackerTasks';
   const SETTINGS_KEY = 'v8_timeTrackerSettings';
 
@@ -626,7 +648,7 @@
     return Date.now() + Math.floor(Math.random() * 1000);
   }
 
-  // ご要望の初期データ（6項目）
+  // 初期データ（6項目）
   const defaultTasks = [
     { id: generateId() + 1, name: 'オーブン洗浄', elapsed: 0, isRunning: false, lastStart: null },
     { id: generateId() + 2, name: '洗浄・片付け業務', elapsed: 0, isRunning: false, lastStart: null },
@@ -653,19 +675,17 @@
     setupEventListeners();
   }
 
-  // --- データ読み込み / 保存（エラー対策強化版） ---
+  // --- データ読み込み / 保存 ---
   function loadTasks() {
     try {
       const data = localStorage.getItem(STORAGE_KEY);
       const parsed = data ? JSON.parse(data) : null;
-      // データが正しい配列の形をしているか厳密にチェック
       if (Array.isArray(parsed) && parsed.length > 0) {
         return parsed;
       }
     } catch (e) {
       console.warn("保存データの読み込みに失敗しました。初期データで開始します。");
     }
-    // エラー時や初回時は初期データをコピーして返す
     return JSON.parse(JSON.stringify(defaultTasks));
   }
 
@@ -781,7 +801,6 @@
     container.innerHTML = html;
     document.getElementById('displayTotalTime').innerText = formatMsToTimeStr(totalMs);
 
-    // テキスト入力中のフォーカスを維持する安全な処理
     if (activeDatasetId && activeClass && typeof activeClass === 'string') {
       try {
         const className = activeClass.split(' ')[0];
@@ -795,7 +814,6 @@
           }
         }
       } catch (e) {
-        // querySelectorのエラーは無視
       }
     }
   }
@@ -871,7 +889,6 @@
   }
 
   function addNewTask() {
-    // 新規タスクの確実な追加
     tasks.push({
       id: generateId(),
       name: `新規作業`,
@@ -881,6 +898,20 @@
     });
     saveTasks();
     renderApp();
+  }
+
+  function resetAllTasks() {
+    if (confirm('すべての作業時間を「0分」にリセットしますか？\n（※作業項目自体は削除されません）')) {
+      tasks.forEach(task => {
+        task.elapsed = 0;
+        if (task.isRunning) {
+          task.lastStart = Date.now();
+        }
+      });
+      saveTasks();
+      renderApp();
+      showToast('すべてのタイマーをリセットしました');
+    }
   }
 
   // --- イベントリスナー設定 ---
@@ -898,11 +929,11 @@
     });
 
     document.getElementById('btnAddTask').addEventListener('click', addNewTask);
+    document.getElementById('btnResetAll').addEventListener('click', resetAllTasks);
     document.getElementById('btnCopyResult').addEventListener('click', copyToClipboard);
 
     const container = document.getElementById('taskListContainer');
     
-    // 入力イベント（自動保存）
     container.addEventListener('input', (e) => {
       const target = e.target;
       const id = Number(target.dataset.id);
@@ -917,7 +948,6 @@
       }
     });
 
-    // クリックイベント委譲
     container.addEventListener('click', (e) => {
       const actionEl = e.target.closest('[data-action]');
       if (!actionEl) return;
@@ -1001,7 +1031,7 @@
     closeEditModal();
   }
 
-  // --- 結果コピー ---
+  // --- 結果コピー（0分のタスクを除外） ---
   function copyToClipboard() {
     recalculateRunningTasks();
 
@@ -1017,17 +1047,21 @@
       const ms = task.elapsed;
       totalMs += ms;
       
-      const readable = formatDurationTotalMinutes(ms);
-      const taskName = task.name.trim() || '名称未設定';
+      const totalSeconds = Math.floor(ms / 1000);
+      const totalMinutes = Math.floor(totalSeconds / 60);
       
-      lines.push(`■ ${taskName} : ${readable}`);
+      // 合計が0分の場合はリストに追加しない
+      if (totalMinutes > 0) {
+        const taskName = task.name.trim() || '名称未設定';
+        lines.push(`■ ${taskName} : ${totalMinutes}分`);
+      }
     });
 
     lines.push(`=========================================`);
     lines.push(`【合計作業時間】 ${formatDurationTotalMinutes(totalMs)}`);
 
     navigator.clipboard.writeText(lines.join('\n'))
-      .then(() => showToast('分単位でコピーしました！'))
+      .then(() => showToast('0分の項目を省いてコピーしました！'))
       .catch(err => {
         console.error('コピーに失敗しました', err);
         showToast('コピーに失敗しました。');
