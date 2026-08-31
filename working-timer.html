@@ -550,7 +550,7 @@
 <div class="app-container">
   <!-- ヘッダー -->
   <header>
-    <h1>⏱️ タイムトラッカー</h1>
+    <h1>⏱️ 作業タイムトラッカー</h1>
     <button class="theme-toggle" id="themeBtn" aria-label="テーマ切り替え">☀️</button>
   </header>
 
@@ -618,9 +618,9 @@
    * =========================================
    */
 
-  // 保存キーを更新（古い壊れたデータとの衝突を避けて完全にリセットするため）
-  const STORAGE_KEY = 'v7_timeTrackerTasks';
-  const SETTINGS_KEY = 'v7_timeTrackerSettings';
+  // バグ修正のために保存キーを更新 (v8)
+  const STORAGE_KEY = 'v8_timeTrackerTasks';
+  const SETTINGS_KEY = 'v8_timeTrackerSettings';
 
   function generateId() {
     return Date.now() + Math.floor(Math.random() * 1000);
@@ -706,7 +706,7 @@
     return task.elapsed;
   }
 
-  // 画面表示用のフォーマット（秒あり）
+  // 画面表示用のフォーマット（秒あり HH:MM:SS）
   function formatMsToTimeStr(ms) {
     const totalSec = Math.floor(ms / 1000);
     const h = String(Math.floor(totalSec / 3600)).padStart(2, '0');
@@ -715,26 +715,11 @@
     return `${h}:${m}:${s}`;
   }
 
-  // コピー用のフォーマット（秒なし）
-  function formatMsToTimeStrNoSec(ms) {
-    const totalSec = Math.floor(ms / 1000);
-    const h = String(Math.floor(totalSec / 3600)).padStart(2, '0');
-    const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
-    return `${h}:${m}`;
-  }
-
-  // コピー用の日本語フォーマット（秒なし）
-  function formatMsToReadableNoSec(ms) {
-    const totalSec = Math.floor(ms / 1000);
-    const h = Math.floor(totalSec / 3600);
-    const m = Math.floor((totalSec % 3600) / 60);
-    
-    if (h === 0 && m === 0) return '0分';
-    
-    const parts = [];
-    if (h > 0) parts.push(`${h}時間`);
-    if (m > 0 || h > 0) parts.push(`${m}分`);
-    return parts.join('');
+  // コピー用のフォーマット（すべて分単位に変換 例: 90分）
+  function formatDurationTotalMinutes(ms) {
+    const totalSeconds = Math.floor(ms / 1000);
+    const totalMinutes = Math.floor(totalSeconds / 60);
+    return `${totalMinutes}分`;
   }
 
   function escapeHTML(str) {
@@ -1032,19 +1017,17 @@
       const ms = task.elapsed;
       totalMs += ms;
       
-      // コピー時は秒数を省いたフォーマットを使用
-      const timeStr = formatMsToTimeStrNoSec(ms);
-      const readable = formatMsToReadableNoSec(ms);
+      const readable = formatDurationTotalMinutes(ms);
       const taskName = task.name.trim() || '名称未設定';
       
-      lines.push(`■ ${taskName} :  ${timeStr} (${readable})`);
+      lines.push(`■ ${taskName} : ${readable}`);
     });
 
     lines.push(`=========================================`);
-    lines.push(`【合計作業時間】 ${formatMsToTimeStrNoSec(totalMs)} (${formatMsToReadableNoSec(totalMs)})`);
+    lines.push(`【合計作業時間】 ${formatDurationTotalMinutes(totalMs)}`);
 
     navigator.clipboard.writeText(lines.join('\n'))
-      .then(() => showToast('秒数を省いてコピーしました！'))
+      .then(() => showToast('分単位でコピーしました！'))
       .catch(err => {
         console.error('コピーに失敗しました', err);
         showToast('コピーに失敗しました。');
