@@ -843,7 +843,12 @@
     
     // 合計時間と給与の計算・表示
     document.getElementById('displayTotalTime').innerText = formatMsToTimeStr(totalMs);
-    const currentWage = Math.floor((totalMs / (1000 * 60 * 60)) * HOURLY_WAGE);
+    
+    // ==========================================
+    // 1分単位ベースで計算 (1250円 ÷ 60分 = 約20.833円/分)
+    // ==========================================
+    const totalMinutes = Math.floor(totalMs / (1000 * 60));
+    const currentWage = Math.floor(totalMinutes * (HOURLY_WAGE / 60));
     document.getElementById('displayTotalWage').innerText = '¥' + currentWage.toLocaleString();
 
     if (activeDatasetId && activeClass && typeof activeClass === 'string') {
@@ -1104,8 +1109,11 @@
     lines.push(`=========================================`);
     lines.push(`【合計作業時間】 ${formatDurationTotalMinutes(totalMs)}`);
     
-    // 給与計算と出力への追加
-    const finalWage = Math.floor((totalMs / (1000 * 60 * 60)) * HOURLY_WAGE);
+    // ==========================================
+    // コピー結果も1分単位ベースで計算
+    // ==========================================
+    const totalMinutesAll = Math.floor(totalMs / (1000 * 60));
+    const finalWage = Math.floor(totalMinutesAll * (HOURLY_WAGE / 60));
     lines.push(`【お見込み給与】 ¥${finalWage.toLocaleString()}`);
 
     navigator.clipboard.writeText(lines.join('\n'))
