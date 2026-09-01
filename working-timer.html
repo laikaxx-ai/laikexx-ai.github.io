@@ -1081,7 +1081,7 @@
     closeEditModal();
   }
 
-  // --- 結果コピー（0分のタスクを除外し、給与を追加） ---
+  // --- 結果コピー（LINE送信用に短縮） ---
   function copyToClipboard() {
     recalculateRunningTasks();
 
@@ -1090,8 +1090,8 @@
     const dateStr = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`;
 
     const lines = [];
-    lines.push(`📋 【作業実績レポート】 ${dateStr}`);
-    lines.push(`=========================================`);
+    lines.push(`【 ${dateStr} 作業分】`);
+    lines.push(`============================`);
 
     tasks.forEach(task => {
       const ms = task.elapsed;
@@ -1106,7 +1106,7 @@
       }
     });
 
-    lines.push(`=========================================`);
+    lines.push(`============================`);
     lines.push(`【合計作業時間】 ${formatDurationTotalMinutes(totalMs)}`);
     
     // ==========================================
