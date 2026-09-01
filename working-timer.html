@@ -133,7 +133,7 @@
     }
 
     /* =========================================
-       サマリー（合計時間）
+       サマリー（合計時間と給与）
        ========================================= */
     .summary-card {
       background: var(--card-bg);
@@ -145,6 +145,19 @@
       align-items: center;
       box-shadow: var(--shadow-md);
       transition: background-color 0.2s ease, border-color 0.2s ease;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .summary-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .summary-group.align-right {
+      text-align: right;
+      align-items: flex-end;
     }
 
     .summary-label {
@@ -159,6 +172,16 @@
       font-variant-numeric: tabular-nums;
       color: var(--primary);
       letter-spacing: -1px;
+      line-height: 1.1;
+    }
+
+    .summary-wage {
+      font-size: 2.2rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: var(--success);
+      letter-spacing: -1px;
+      line-height: 1.1;
     }
 
     /* =========================================
@@ -557,8 +580,17 @@
         margin-top: 8px;
         justify-content: flex-end;
       }
-      .summary-card { padding: 16px; }
-      .summary-time { font-size: 2rem; }
+      .summary-card { 
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 20px; 
+      }
+      .summary-group.align-right {
+        text-align: left;
+        align-items: flex-start;
+      }
+      .summary-time { font-size: 2.2rem; }
+      .summary-wage { font-size: 2rem; }
     }
   </style>
 </head>
@@ -571,10 +603,16 @@
     <button class="theme-toggle" id="themeBtn" aria-label="テーマ切り替え">☀️</button>
   </header>
 
-  <!-- サマリーエリア -->
+  <!-- サマリーエリア（合計時間と給与） -->
   <div class="summary-card">
-    <div class="summary-label">合計作業時間</div>
-    <div class="summary-time" id="displayTotalTime">00:00:00</div>
+    <div class="summary-group">
+      <div class="summary-label">合計作業時間</div>
+      <div class="summary-time" id="displayTotalTime">00:00:00</div>
+    </div>
+    <div class="summary-group align-right">
+      <div class="summary-label">お見込み給与 (時給1250円)</div>
+      <div class="summary-wage" id="displayTotalWage">¥0</div>
+    </div>
   </div>
 
   <!-- ツールバー -->
@@ -639,6 +677,9 @@
    * アプリケーションロジック
    * =========================================
    */
+
+  // 時給設定 (こちらで変更可能です)
+  const HOURLY_WAGE = 1250;
 
   // 保存キー
   const STORAGE_KEY = 'v8_timeTrackerTasks';
@@ -799,7 +840,11 @@
     });
 
     container.innerHTML = html;
+    
+    // 合計時間と給与の計算・表示
     document.getElementById('displayTotalTime').innerText = formatMsToTimeStr(totalMs);
+    const currentWage = Math.floor((totalMs / (1000 * 60 * 60)) * HOURLY_WAGE);
+    document.getElementById('displayTotalWage').innerText = '¥' + currentWage.toLocaleString();
 
     if (activeDatasetId && activeClass && typeof activeClass === 'string') {
       try {
@@ -1031,7 +1076,7 @@
     closeEditModal();
   }
 
-  // --- 結果コピー（0分のタスクを除外） ---
+  // --- 結果コピー（0分のタスクを除外し、給与を追加） ---
   function copyToClipboard() {
     recalculateRunningTasks();
 
@@ -1050,7 +1095,6 @@
       const totalSeconds = Math.floor(ms / 1000);
       const totalMinutes = Math.floor(totalSeconds / 60);
       
-      // 合計が0分の場合はリストに追加しない
       if (totalMinutes > 0) {
         const taskName = task.name.trim() || '名称未設定';
         lines.push(`■ ${taskName} : ${totalMinutes}分`);
@@ -1059,9 +1103,13 @@
 
     lines.push(`=========================================`);
     lines.push(`【合計作業時間】 ${formatDurationTotalMinutes(totalMs)}`);
+    
+    // 給与計算と出力への追加
+    const finalWage = Math.floor((totalMs / (1000 * 60 * 60)) * HOURLY_WAGE);
+    lines.push(`【お見込み給与】 ¥${finalWage.toLocaleString()}`);
 
     navigator.clipboard.writeText(lines.join('\n'))
-      .then(() => showToast('0分の項目を省いてコピーしました！'))
+      .then(() => showToast('給与額を含めてコピーしました！'))
       .catch(err => {
         console.error('コピーに失敗しました', err);
         showToast('コピーに失敗しました。');
